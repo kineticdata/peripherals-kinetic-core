@@ -6,6 +6,7 @@ categories:
 - CRM
 - DevOps
 - Ticketing
-display-name: Kinetic Request CE
-manufacture: Kinetic
+display-name: Kinetic Core
+manufacturer: Kinetic Data
 product: Reqeust CE
+description: The Core component of the Kinetic Platform, (commonly referred to as Kinetic Request CE).
