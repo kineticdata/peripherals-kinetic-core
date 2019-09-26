@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,8 +45,8 @@ import org.slf4j.LoggerFactory;
  */
 @FunctionalInterface
 interface PaginationPredicate {
-    boolean apply(List<String> list, String string,
-        LinkedHashMap<String, String> map);
+    boolean apply(List<String> list, Map<String, String> map,
+        String str, LinkedHashMap<String, String> linkedmap);
 }
 
 /**
@@ -140,6 +141,17 @@ public class KineticCoreAdapter implements BridgeAdapter {
         testAuth();
     }
     
+    /**
+     * Internal class used to define valid Structures.
+     *  Properties:
+     *      String structure - name of a model of data.
+     *      String plural - property name accessor when multiple results returned
+     *      String plural - property name accessor when single result returned
+     *      Set<String> implicitIncludes - additions placed on the parameters of
+     *          the request to source system.
+     *      PaginationPredicate paginationPredicate - method called to determine
+     *          if request may be paginated server side.
+     */
     public static class Mapping {
         private final String structure;
         private final String plural;
@@ -197,9 +209,11 @@ public class KineticCoreAdapter implements BridgeAdapter {
         }
     }
     
+    /**
+     * Define valid Structures
+     */
     public static Map<String,Mapping> MAPPINGS 
         = new LinkedHashMap<String,Mapping>() {{
-        
         put("Submissions", new Mapping("Submissions", "submissions", "submission",
             Arrays.asList("values","details"),
             Arrays.asList("closedAt","createdAt","submittedAt","updatedAt"),
@@ -233,12 +247,13 @@ public class KineticCoreAdapter implements BridgeAdapter {
     /*---------------------------------------------------------------------------------------------
      * IMPLEMENTATION METHODS
      *-------------------------------------------------------------------------------------------*/
-
     @Override
     public Count count(BridgeRequest request) throws BridgeError {
+        // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
+        // get Structure model
         Mapping mapping = getMapping(request.getStructure());
-        
+        // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         
         if (!parameters.containsKey("limit")) {
@@ -252,7 +267,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         
         Map<String,String> metadata = new LinkedHashMap<String, String>();
         int count = 0;
-        
+        // parse response
         try {
             JSONObject json = (JSONObject)JSONValue.parse(response);
             JSONArray pluralResult = new JSONArray();
@@ -281,10 +296,11 @@ public class KineticCoreAdapter implements BridgeAdapter {
 
     @Override
     public Record retrieve(BridgeRequest request) throws BridgeError {
+        // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
-
+        // get Structure model
         Mapping mapping = getMapping(request.getStructure());
-
+        // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
@@ -293,7 +309,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
             getUrl(request, parameterMap), parser);
         
         JSONObject singleResult = new JSONObject();
-        
+        // parse response
         try {    
             JSONObject json = (JSONObject)JSONValue.parse(response);
             JSONArray pluralResult = (JSONArray)json.get(mapping.getPlural());
@@ -318,28 +334,30 @@ public class KineticCoreAdapter implements BridgeAdapter {
     }
 
     /* 
-     * The order of operation for sorting result:
-     *  if No order metadata return results natural sort order.
-     *  else
-     *      Check if pagination is supported by the server.
-     *      if Supported return results sorted from server.
-     *          else
-     *          if nextpagetoken == null
-     *              Sort in the bridge
-     *          else
-     *              Set warning on metadata that results are not sorted.
-     *              Return results in natural sort order. 
+     * Sort and Pagination criteria:
+     *  Two sort options availabe are server side and adapter side. The source 
+     *  defines valid server side sorting options. If the results can't be sorted
+     *  server side, then adapter side sorting maybe and option. Valid adater 
+     *  side sorting requires that the whole dataset be in memory. In may cases
+     *  this is under 1000 records.
+     *
+     *  Two pagination options avaliable are server side and adapter side. The
+     *  source defines valid server side pagination options. If the entire result
+     *  set can fit into memory then adapter sorting can be done.
      */
     @Override
     public RecordList search(BridgeRequest request) throws BridgeError {
+        // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
-        
+        // get Structure model
         Mapping mapping = getMapping(request.getStructure());
-        
+        // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
+        parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
         
         LinkedHashMap<String,String> sortOrderItems = null; 
         
+        // determine if paginations is supported server side.
         boolean paginationSupported = false;
         if (request.getMetadata("order") != null) {
             
@@ -354,16 +372,16 @@ public class KineticCoreAdapter implements BridgeAdapter {
                 paginationFields = mapping.getPaginationFields();
             }
             paginationSupported = mapping.getPaginationPredicate().apply(
-                paginationFields, request.getQuery(), sortOrderItems);
+                paginationFields, parameters, mapping.getStructure(), 
+                sortOrderItems);
         }
         
+        // default the limit of the query if not provided
         String limit = null;
         if (!paginationSupported || !parameters.containsKey("limit")) {    
             limit = parameters.get("limit");
             parameters.put("limit", "1000");
         }
-        
-        parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
         
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
@@ -373,7 +391,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         List<Record> records = new ArrayList<Record>();
         Map<String, String> metadata = request.getMetadata() != null ?
                 request.getMetadata() : new HashMap<>();
-        
+        // parse response
         try {
             JSONObject json = (JSONObject)JSONValue.parse(response);
             JSONArray pluralResult = (JSONArray)json.get(mapping.getPlural());
@@ -390,15 +408,15 @@ public class KineticCoreAdapter implements BridgeAdapter {
         }
         
         
-        // If core side sorting isn't supported and order is required.
+        // If server side sorting isn't supported and order is required.
         if (!paginationSupported && request.getMetadata("order") != null) {
-            // If all the records have been retrived sort bridge side.
+            // If all the records have been retrived sort adapter side.
             if ( metadata.get("nextPageToken") != null) {
                 
                 int index = 0;
                 int offset = records.size();
                 if (limit != null) {
-                    
+                    // support for adapter side pagianation
                     Integer currentPage = 0;
                     if( metadata.get("currentPage") != null) {
                         try {
@@ -450,7 +468,16 @@ public class KineticCoreAdapter implements BridgeAdapter {
     /*---------------------------------------------------------------------------------------------
      * HELPER METHODS
      *-------------------------------------------------------------------------------------------*/
-    protected Map<String, NameValuePair> buildNameValuePairMap(Map<String, String> parameters) {
+    /**
+     * Convert parameters from a String to a NameValuePair for use with building
+     * the URL parameters
+     * 
+     * @param Map<String, String> parameters
+     * @return Map<String, NameValuePair>
+     */
+    protected Map<String, NameValuePair> buildNameValuePairMap(
+        Map<String, String> parameters) {
+        
         Map<String, NameValuePair> parameterMap = new HashMap<>();
 
         parameters.forEach((key, value) -> {
@@ -460,6 +487,14 @@ public class KineticCoreAdapter implements BridgeAdapter {
         return parameterMap;
     }
          
+    /**
+     * Add implicit includes to the parameters Map.  Implicit includes are values
+     * that get passed along with every request specific to a Structure.
+     * 
+     * @param Map<String, String> parameters
+     * @param Set<String> implicitIncludes
+     * @return Map<String, String>
+     */
     protected Map<String, String> addImplicitIncludes(Map<String, String> parameters,
         Set<String> implicitIncludes) {
         
@@ -477,6 +512,14 @@ public class KineticCoreAdapter implements BridgeAdapter {
         return parameters;
     }
     
+    /**
+     * Check that the sort order items is a true LinkedHashMap.  Sort order items
+     * require that the order be maintained.
+     * 
+     * @param Map<String, String> uncastSortOrderItems
+     * @return LinkedHashMap<String, String>
+     * @throws IllegalArgumentException 
+     */
     private LinkedHashMap<String, String> 
         getSortOrderItems (Map<String, String> uncastSortOrderItems)
         throws IllegalArgumentException{
@@ -490,7 +533,16 @@ public class KineticCoreAdapter implements BridgeAdapter {
         
         return (LinkedHashMap)uncastSortOrderItems;
     }
-        
+     
+    /**
+     * This method checks that the structure on the request matches on in the 
+     * Mapping internal class.  Mappings map directly to the adapters supported 
+     * Structures.  
+     * 
+     * @param String structure
+     * @return Mapping
+     * @throws BridgeError 
+     */
     protected Mapping getMapping (String structure) throws BridgeError{
         Mapping mapping = MAPPINGS.get(structure);
         if (mapping == null) {
@@ -500,6 +552,15 @@ public class KineticCoreAdapter implements BridgeAdapter {
         return mapping;
     }
     
+    /**
+     * This method loops the provided JSON array and creates a record from each
+     * element in the array.
+     * 
+     * @param List<String> fields
+     * JSONArray @param array
+     * @return List<Record>
+     * @throws BridgeError 
+     */
     protected List<Record> createRecords(List<String> fields, JSONArray array) 
         throws BridgeError {
         
@@ -509,6 +570,14 @@ public class KineticCoreAdapter implements BridgeAdapter {
             .collect(Collectors.toList());
     }
     
+    /**
+     * Creates a Record from the provided JSON Object.  This method has an internal
+     * call to convert complex values to strings.
+     * 
+     * @param List<String> fields
+     * @param JSONObject item
+     * @return Record
+     */
     private Record createRecord(List<String> fields, JSONObject item) {
         Map<String,Object> record = new HashMap<String,Object>();
         
@@ -542,7 +611,14 @@ public class KineticCoreAdapter implements BridgeAdapter {
             return new Record();
         }
     }
-        
+    
+    /**
+     * Convert provided property of object to a String.
+     * 
+     * @param JSONArray object
+     * @param String key
+     * @return String
+     */
     private String extract(JSONArray object, String key) {
         Object matchingItem = object.stream()
             .filter(jsonObject -> jsonObject instanceof JSONObject)
@@ -557,6 +633,13 @@ public class KineticCoreAdapter implements BridgeAdapter {
         return extract((JSONObject)matchingItem, "values");
     }
 
+    /**
+     * Convert provided property of object to a String.
+     * 
+     * @param JSONArray object
+     * @param String key
+     * @return String
+     */
     private String extract(JSONObject object, String field) {
         Object value = (object == null) ? null : object.get(field);
 
@@ -573,6 +656,13 @@ public class KineticCoreAdapter implements BridgeAdapter {
         return result;
     }
     
+    /**
+     * Build URL to be used when making request to the source system.
+     * 
+     * @param BridgeRequest request
+     * @param Map<String, NameValuePair> parameters
+     * @return String
+     */
     protected String getUrl (BridgeRequest request,
         Map<String, NameValuePair> parameters) {
         
@@ -581,10 +671,15 @@ public class KineticCoreAdapter implements BridgeAdapter {
             URLEncodedUtils.format(parameters.values(), Charset.forName("UTF-8")));
     }
     
-    // TODO: confirm that direction in order metadata matches qualification mapping. 
+    // Check that only one sort order item exists
+    // Check that the sore order item is in the paginated fields list
+    // Users, Teams, Kapp Submissions
+    // paginationFields = [displayName,email]
+    // queryString = ?orderBy=displayName&direction=ACS
+    // sortOrderItmes = {"displayName","ACS"}
     protected static boolean paginationSupportedForRestrictedModel(
-        List<String> paginationFields, String queryString,
-        LinkedHashMap<String, String> sortOrderItems) {
+        List<String> paginationFields, Map<String, String> parameters,
+        String structure, LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
                 
@@ -592,38 +687,65 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // If sort order items has more than a single item pagination is not  
         // supported serverside.
         if (sortOrderItems.size() == 1) {
-            for(String field: paginationFields) {
-                if (supported && queryString.contains(field)) {
-                    supported = false;
-                    break;
-                } else if (queryString.contains(field)) {
-                    supported = true;
-                }
+            String sortBy = sortOrderItems.entrySet().iterator().next().getKey();
+            String direction = sortOrderItems.entrySet().iterator().next().getValue();
+            if (paginationFields.contains(sortBy)) {
+                parameters.put(structure == "Submission" ? "timeline" 
+                    : "orderBy", sortBy);
+                parameters.put("direction", direction);
+                supported = true;
+            } else {
+                logger.debug("The endpoint does not support %s as an orderBy "
+                    + "field.", sortBy);
             }
         }
         return supported;
     }
     
-    // TODO: confirm that direction in order metadata matches qualification mapping.
+    // Check that all sort directions match for sort order items.
+    // Check that all sort order items are also pagination fields.
+    // Kapps, Kapp Forms, DataStore Forms
+    // paginationFields = [createdAt,updatedAt]
+    // queryString = ?timeline=createdAt&direction=ACS
+    // sortOrderItmes = {"createdAt","ACS"}
     protected static boolean paginationSupportedForUnrestrictedModel(
-        List<String> paginationFields, String queryString,
-        LinkedHashMap<String, String> sortOrderItems) {
+        List<String> paginationFields, Map<String, String> parameters,
+        String _noOp1, LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
 
-        for(String field: paginationFields) {
-            if (queryString.contains(field)) {
+        // check that Ordering has consistant direction.
+        supported = sortOrderItems.values().stream().map(String::toLowerCase)
+            .collect(Collectors.toSet()).size() <= 1;
+        if (supported) {
+            supported = false;
+            
+            // Order of the items is maintained based on Java docs 
+            // https://docs.oracle.com/javase/7/docs/api/java/util/Map.html
+            // https://stackoverflow.com/questions/18929854/method-to-extract-all-keys-from-linkedhashmap-into-a-list
+            Set<String> itemsKeys = sortOrderItems.keySet();
+            Set<String> fieldsSet = new HashSet<>(paginationFields);
+            String direction = sortOrderItems.entrySet().iterator().next().getValue();
+            
+            if (fieldsSet.equals(itemsKeys)) {
+                parameters.put("orderBy", String.join(" ,", itemsKeys));
+                parameters.put("direction", direction);
                 supported = true;
             }
+        } else {
+            logger.debug("Server side sorting only supports a single key "
+                    + "direction for kapps, kapp forms and datastore forms.");
         }
         
         return supported;
     }
     
     // TODO: confirm that direction in order metadata matches qualification mapping.
+    // Check that sort direction is consistent for all sort order items
+    // Check that the indexs and the sortOrderItems match in value and order
     protected static boolean paginationSupportedForIndexedModel( 
-        List<String> indexes, String queryString, 
-        LinkedHashMap<String, String> sortOrderItems) {
+        List<String> indexes, Map<String, String> _noOp1, 
+        String _noOp2, LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
         
@@ -637,8 +759,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
                 && supported) {
             
             int idx = 0;
-            for (String field: sortOrderItems.keySet()) {
-                if (!indexes.get(idx).equalsIgnoreCase(field)) {
+            for (String item: sortOrderItems.keySet()) {
+                if (!indexes.get(idx).equalsIgnoreCase(item)) {
                     supported = false;
                     break;
                 }
