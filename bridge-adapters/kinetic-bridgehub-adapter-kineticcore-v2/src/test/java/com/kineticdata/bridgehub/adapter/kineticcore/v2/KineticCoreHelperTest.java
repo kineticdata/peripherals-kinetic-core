@@ -35,26 +35,26 @@ public class KineticCoreHelperTest {
         // Test index and order fields match
         boolean supported = false;
         supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, "", sortOrderItems);
+            paginationFields, parameters, sortOrderItems);
         Assert.assertTrue(supported);
         
         // Test additional indexs and order fields with same direction
         paginationFields.add("values[Related Id]");
         sortOrderItems.put("values[Related Id]","ASC");
         supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, "", sortOrderItems);
+            paginationFields, parameters, sortOrderItems);
         Assert.assertTrue(supported);
         
         // Test that mixed direction fails
         sortOrderItems.replace("values[Related Id]", "DESC");
         supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, "", sortOrderItems);
+            paginationFields, parameters, sortOrderItems);
         Assert.assertFalse(supported);
         
         // Test that mismatched list sizes fails
         sortOrderItems.remove("values[Related Id]");
         supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, "", sortOrderItems);
+            paginationFields, parameters, sortOrderItems);
         Assert.assertFalse(supported);
         
         // Test that index out of order fails
@@ -62,7 +62,7 @@ public class KineticCoreHelperTest {
         sortOrderItems.put("values[Related Id]","ASC");
         sortOrderItems.put("values[Status]","ASC");
         supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, "", sortOrderItems);
+            paginationFields, parameters, sortOrderItems);
         Assert.assertFalse(supported);
     }
     
@@ -70,18 +70,18 @@ public class KineticCoreHelperTest {
     public void test_paginationSupported_1() throws Exception {
         List<String> paginationFields = new ArrayList<>();
         LinkedHashMap<String, String> sortOrderItems = new LinkedHashMap<>();
+        KineticCoreAdapter kcAdapter = new KineticCoreAdapter();
       
         String sortByValue = "createdAt";
         String sortByDirection = "DESC";
         paginationFields.add("createdAt");
         sortOrderItems.put(sortByValue,sortByDirection);
-        String structure = "Submissions";
         Map parameters = new HashMap();
         
         // Test paginatable field is included in query string
         boolean supported = false;
-        supported = KineticCoreAdapter.paginationSupportedForRestrictedModel(
-            paginationFields, parameters, structure, sortOrderItems);
+        supported = kcAdapter.paginationSupportedForRestrictedModelTimeline(
+            paginationFields, parameters, sortOrderItems);
         Assert.assertTrue(supported);
         Assert.assertTrue(parameters.containsKey("timeline"));
         
@@ -97,8 +97,8 @@ public class KineticCoreHelperTest {
         
         // Test paginatable fields does not match sortOrderItems
         sortOrderItems.remove("createdAt");
-        supported = KineticCoreAdapter.paginationSupportedForRestrictedModel(
-            paginationFields, parameters, structure, sortOrderItems);
+        supported = kcAdapter.paginationSupportedForRestrictedModelTimeline(
+            paginationFields, parameters, sortOrderItems);
         Assert.assertFalse(supported);
     }
     /*--------------------------------------------------------------------------

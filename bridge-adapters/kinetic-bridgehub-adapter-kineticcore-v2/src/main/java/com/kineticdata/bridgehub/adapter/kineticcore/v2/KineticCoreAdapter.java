@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 @FunctionalInterface
 interface PaginationPredicate {
     boolean apply(List<String> list, Map<String, String> map,
-        String str, LinkedHashMap<String, String> linkedmap);
+        LinkedHashMap<String, String> linkedmap);
 }
 
 /**
@@ -59,6 +59,43 @@ public class KineticCoreAdapter implements BridgeAdapter {
     public KineticCoreAdapter () {
         this.parser = new KineticCoreQualificationParser();
     }
+    
+    /*----------------------------------------------------------------------------------------------
+     * STRUCTURES
+     *      KineticCoreMapping( Structure Name, Plural Accessor, Single Accessor,
+     *          Implicate Feilds, Pagination Supported Function)
+     *--------------------------------------------------------------------------------------------*/
+    public static Map<String,KineticCoreMapping> MAPPINGS 
+        = new HashMap<String,KineticCoreMapping>() {{
+        put("Submissions", new KineticCoreMapping("Submissions", "submissions", 
+            "submission", Arrays.asList("values","details"),
+            Arrays.asList("closedAt","createdAt","submittedAt","updatedAt"),
+            KineticCoreAdapter::paginationSupportedForRestrictedModelTimeline));
+        put("Forms", new KineticCoreMapping("Forms", "forms", "form", 
+            Arrays.asList("details", "attributes"),
+            Arrays.asList("category", "createdAt", "name", "slug", "updatedAt",
+                "status", "type"),
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+        put("Users", new KineticCoreMapping("Users", "users", "user",
+            Arrays.asList("attributes", "profileAttributes"),
+            Arrays.asList("createdAt","displayName","email","updatedAt","username"),
+            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy));
+        put("Teams", new KineticCoreMapping("Teams", "teams", "team", 
+            Arrays.asList("attributes","memberships","details"),
+            Arrays.asList("created", "localName", "name", "updatedAt"),
+            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy));
+        put("Kapps", new KineticCoreMapping("Kapps", "kapps", "kapp", 
+            Arrays.asList("details", "attributes"),
+            Arrays.asList("createdAt", "name", "slug", "updateAt"),
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+        put("Datastore Forms", new KineticCoreMapping("Datastore Forms", "forms", 
+             "form", Arrays.asList("values","details"),
+            Arrays.asList("createdAt", "name", "slug", "updatedAt", "status"),
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+        put("Datastore Submissions", new KineticCoreMapping("Datastore Submissions", 
+            "submissions", "submission", Arrays.asList("details", "attributes"),
+            KineticCoreAdapter::paginationSupportedForIndexedModel));
+    }};
     
     /*----------------------------------------------------------------------------------------------
      * PROPERTIES
@@ -103,11 +140,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         new ConfigurableProperty(Properties.PASSWORD).setIsRequired(true).setIsSensitive(true),
         new ConfigurableProperty(Properties.SPACE_URL).setIsRequired(true)
     );
-
-
-    /*---------------------------------------------------------------------------------------------
-     * SETUP METHODS
-     *-------------------------------------------------------------------------------------------*/
+    
     @Override
     public String getName() {
         return NAME;
@@ -128,6 +161,9 @@ public class KineticCoreAdapter implements BridgeAdapter {
         properties.setValues(parameters);
     }
 
+    /*---------------------------------------------------------------------------------------------
+     * SETUP METHODS
+     *-------------------------------------------------------------------------------------------*/
     @Override
     public void initialize() throws BridgeError {
         this.spaceUrl = properties.getValue(Properties.SPACE_URL);
@@ -140,109 +176,6 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // correctly authenticate with Core
         testAuth();
     }
-    
-    /**
-     * Internal class used to define valid Structures.
-     *  Properties:
-     *      String structure - name of a model of data.
-     *      String plural - property name accessor when multiple results returned
-     *      String plural - property name accessor when single result returned
-     *      Set<String> implicitIncludes - additions placed on the parameters of
-     *          the request to source system.
-     *      PaginationPredicate paginationPredicate - method called to determine
-     *          if request may be paginated server side.
-     */
-    public static class Mapping {
-        private final String structure;
-        private final String plural;
-        private final String singular;
-        private final Set<String> implicitIncludes;
-        private List<String> paginationFields;
-        private PaginationPredicate paginationPredicate;
-        
-        public Mapping(String structure, String plural, String singular, 
-            Collection<String> implicitIncludes, 
-            PaginationPredicate paginationPredicate) {
-            
-            this.structure = structure;
-            this.plural = plural;
-            this.singular = singular;
-            this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
-            this.paginationPredicate = paginationPredicate;
-        }
-
-        public Mapping(String structure, String plural, String singular, 
-            Collection<String> implicitIncludes, 
-            Collection<String> paginationFields,
-            PaginationPredicate paginationPredicate) {
-            
-            this.structure = structure;
-            this.plural = plural;
-            this.singular = singular;
-            this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
-            this.paginationFields = new ArrayList<>(paginationFields);
-            this.paginationPredicate = paginationPredicate;
-        }
-        
-        public String getStructure() {
-            return structure;
-        }
-
-        public String getPlural() {
-            return plural;
-        }
-
-        public String getSingular() {
-            return singular;
-        }
-
-        public Set<String> getImplicitIncludes() {
-            return implicitIncludes;
-        }
-        
-        public List<String> getPaginationFields() {
-            return paginationFields;
-        }
-        
-        public PaginationPredicate getPaginationPredicate() {
-            return paginationPredicate;
-        }
-    }
-    
-    /**
-     * Define valid Structures
-     */
-    public static Map<String,Mapping> MAPPINGS 
-        = new LinkedHashMap<String,Mapping>() {{
-        put("Submissions", new Mapping("Submissions", "submissions", "submission",
-            Arrays.asList("values","details"),
-            Arrays.asList("closedAt","createdAt","submittedAt","updatedAt"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModel));
-        put("Forms", new Mapping("Forms", "forms", "form", 
-            Arrays.asList("details", "attributes"),
-            Arrays.asList("category", "createdAt", "name", "slug", "updatedAt",
-                "status", "type"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
-        put("Users", new Mapping("Users", "users", "user",
-            Arrays.asList("attributes", "profileAttributes"),
-            Arrays.asList("createdAt","displayName","email","updatedAt","username"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModel));
-        put("Teams", new Mapping("Teams", "teams", "team", 
-            Arrays.asList("attributes","memberships","details"),
-            Arrays.asList("created", "localName", "name", "updatedAt"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModel));
-        put("Kapps", new Mapping("Kapps", "kapps", "kapp", 
-            Arrays.asList("details", "attributes"),
-            Arrays.asList("createdAt", "name", "slug", "updateAt"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
-        put("Datastore Forms", new Mapping("Datastore Forms", "forms", "form", 
-            Arrays.asList("values","details"),
-            Arrays.asList("createdAt", "name", "slug", "updatedAt", "status"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
-        put("Datastore Submissions", new Mapping("Datastore Submissions", 
-            "submissions", "submission", Arrays.asList("details", "attributes"),
-            KineticCoreAdapter::paginationSupportedForIndexedModel));
-    }};
 
     /*---------------------------------------------------------------------------------------------
      * IMPLEMENTATION METHODS
@@ -252,7 +185,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
         // get Structure model
-        Mapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(request.getStructure());
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         
@@ -299,7 +232,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
         // get Structure model
-        Mapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(request.getStructure());
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
@@ -350,7 +283,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
         // get Structure model
-        Mapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(request.getStructure());
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
@@ -372,8 +305,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
                 paginationFields = mapping.getPaginationFields();
             }
             paginationSupported = mapping.getPaginationPredicate().apply(
-                paginationFields, parameters, mapping.getStructure(), 
-                sortOrderItems);
+                paginationFields, parameters, sortOrderItems);
         }
         
         // default the limit of the query if not provided
@@ -543,8 +475,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
      * @return Mapping
      * @throws BridgeError 
      */
-    protected Mapping getMapping (String structure) throws BridgeError{
-        Mapping mapping = MAPPINGS.get(structure);
+    protected KineticCoreMapping getMapping (String structure) throws BridgeError{
+        KineticCoreMapping mapping = MAPPINGS.get(structure);
         if (mapping == null) {
             throw new BridgeError("Invalid Structure: '" 
                 + structure + "' is not a valid structure");
@@ -673,13 +605,33 @@ public class KineticCoreAdapter implements BridgeAdapter {
     
     // Check that only one sort order item exists
     // Check that the sore order item is in the paginated fields list
-    // Users, Teams, Kapp Submissions
+    // Users, Teams
     // paginationFields = [displayName,email]
-    // queryString = ?orderBy=displayName&direction=ACS
     // sortOrderItmes = {"displayName","ACS"}
-    protected static boolean paginationSupportedForRestrictedModel(
+    protected static boolean paginationSupportedForRestrictedModelOrderBy(
         List<String> paginationFields, Map<String, String> parameters,
-        String structure, LinkedHashMap<String, String> sortOrderItems) {
+        LinkedHashMap<String, String> sortOrderItems) {
+        
+        return restrictedModelHelper(paginationFields, parameters, "orderBy",
+            sortOrderItems);
+    }
+    
+    // Check that only one sort order item exists
+    // Check that the sore order item is in the paginated fields list
+    // Kapp Submissions
+    // paginationFields = [createdAt,updatedAt]
+    // sortOrderItmes = {"displayName","ACS"}
+    protected static boolean paginationSupportedForRestrictedModelTimeline(
+        List<String> paginationFields, Map<String, String> parameters,
+        LinkedHashMap<String, String> sortOrderItems) {
+        
+        return restrictedModelHelper(paginationFields, parameters, "timeline",
+            sortOrderItems);
+    }
+    
+    protected static boolean restrictedModelHelper(List<String> paginationFields, 
+        Map<String, String> parameters, String parameterName, 
+         LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
                 
@@ -690,13 +642,12 @@ public class KineticCoreAdapter implements BridgeAdapter {
             String sortBy = sortOrderItems.entrySet().iterator().next().getKey();
             String direction = sortOrderItems.entrySet().iterator().next().getValue();
             if (paginationFields.contains(sortBy)) {
-                parameters.put(structure == "Submission" ? "timeline" 
-                    : "orderBy", sortBy);
+                parameters.put(parameterName, sortBy);
                 parameters.put("direction", direction);
                 supported = true;
             } else {
-                logger.debug("The endpoint does not support %s as an orderBy "
-                    + "field.", sortBy);
+                logger.debug("The endpoint does not support %s as an %s "
+                    + "field.", sortBy, parameterName);
             }
         }
         return supported;
@@ -710,7 +661,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
     // sortOrderItmes = {"createdAt","ACS"}
     protected static boolean paginationSupportedForUnrestrictedModel(
         List<String> paginationFields, Map<String, String> parameters,
-        String _noOp1, LinkedHashMap<String, String> sortOrderItems) {
+        LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
 
@@ -745,7 +696,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
     // Check that the indexs and the sortOrderItems match in value and order
     protected static boolean paginationSupportedForIndexedModel( 
         List<String> indexes, Map<String, String> _noOp1, 
-        String _noOp2, LinkedHashMap<String, String> sortOrderItems) {
+        LinkedHashMap<String, String> sortOrderItems) {
         
         boolean supported = false;
         
