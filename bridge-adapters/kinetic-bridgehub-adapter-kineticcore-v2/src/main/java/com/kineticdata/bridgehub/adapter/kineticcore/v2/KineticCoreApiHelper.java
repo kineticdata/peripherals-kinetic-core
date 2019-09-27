@@ -46,7 +46,7 @@ public class KineticCoreApiHelper {
             if (response.getStatusLine().getStatusCode() == 404) {
                 throw new BridgeError(String.format(
                     "Not Found: %s not found at %s.", request.getStructure(),
-                    String.join(",", parser.parsePath(request.getQuery()))));
+                    String.join(",", url)));
             } else if (response.getStatusLine().getStatusCode() == 400) {
                 JSONObject json = (JSONObject)JSONValue.parse(output);
                 throw new BridgeError("Bad Reqeust: " + json.get("error"));

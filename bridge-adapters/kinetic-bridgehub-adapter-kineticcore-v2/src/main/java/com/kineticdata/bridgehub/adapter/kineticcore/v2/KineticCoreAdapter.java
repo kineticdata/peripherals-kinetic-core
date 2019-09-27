@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,12 +40,19 @@ import org.json.simple.JSONValue;
 import org.slf4j.LoggerFactory;
 
 /**
- * Interface for use with the pagination supported predicate logic.
+ * Interfaces for mappings.
  */
 @FunctionalInterface
 interface PaginationPredicate {
-    boolean apply(List<String> list, Map<String, String> map,
-        LinkedHashMap<String, String> linkedmap);
+    boolean apply(List<String> paginationFields, Map<String, String> parameters,
+        LinkedHashMap<String, String> sortOrderItems);
+}
+
+
+@FunctionalInterface
+interface PathPredicate {
+    String apply(String[] structureArray, Map<String, String> parameters) 
+        throws BridgeError;
 }
 
 /**
@@ -63,38 +69,50 @@ public class KineticCoreAdapter implements BridgeAdapter {
     /*----------------------------------------------------------------------------------------------
      * STRUCTURES
      *      KineticCoreMapping( Structure Name, Plural Accessor, Single Accessor,
-     *          Implicate Feilds, Pagination Supported Function)
+     *          Implicate Feilds, Pagination Supported Function, Path Function)
      *--------------------------------------------------------------------------------------------*/
     public static Map<String,KineticCoreMapping> MAPPINGS 
         = new HashMap<String,KineticCoreMapping>() {{
         put("Submissions", new KineticCoreMapping("Submissions", "submissions", 
             "submission", Arrays.asList("values","details"),
             Arrays.asList("closedAt","createdAt","submittedAt","updatedAt"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModelTimeline));
+            KineticCoreAdapter::paginationSupportedForRestrictedModelTimeline,
+            KineticCoreAdapter::pathSubmissions));
         put("Forms", new KineticCoreMapping("Forms", "forms", "form", 
             Arrays.asList("details", "attributes"),
             Arrays.asList("category", "createdAt", "name", "slug", "updatedAt",
                 "status", "type"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
+            KineticCoreAdapter::pathForms));
         put("Users", new KineticCoreMapping("Users", "users", "user",
             Arrays.asList("attributes", "profileAttributes"),
             Arrays.asList("createdAt","displayName","email","updatedAt","username"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy));
+            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy,
+            KineticCoreAdapter::pathUsers));
         put("Teams", new KineticCoreMapping("Teams", "teams", "team", 
             Arrays.asList("attributes","memberships","details"),
             Arrays.asList("created", "localName", "name", "updatedAt"),
-            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy));
+            KineticCoreAdapter::paginationSupportedForRestrictedModelOrderBy,
+            KineticCoreAdapter::pathTeams));
         put("Kapps", new KineticCoreMapping("Kapps", "kapps", "kapp", 
             Arrays.asList("details", "attributes"),
             Arrays.asList("createdAt", "name", "slug", "updateAt"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
+            KineticCoreAdapter::pathKapps));
         put("Datastore Forms", new KineticCoreMapping("Datastore Forms", "forms", 
              "form", Arrays.asList("values","details"),
             Arrays.asList("createdAt", "name", "slug", "updatedAt", "status"),
-            KineticCoreAdapter::paginationSupportedForUnrestrictedModel));
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
+            KineticCoreAdapter::pathDatastoreForms));
         put("Datastore Submissions", new KineticCoreMapping("Datastore Submissions", 
             "submissions", "submission", Arrays.asList("details", "attributes"),
-            KineticCoreAdapter::paginationSupportedForIndexedModel));
+            KineticCoreAdapter::paginationSupportedForIndexedModel,
+            KineticCoreAdapter::pathDatastoreSubmissions));
+        put("Space", new KineticCoreMapping("Space", "", "space", 
+            Arrays.asList("details", "attributes"),
+            Arrays.asList("createdAt", "name", "slug", "updateAt"),
+            KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
+            KineticCoreAdapter::pathSpace));
     }};
     
     /*----------------------------------------------------------------------------------------------
@@ -184,8 +202,10 @@ public class KineticCoreAdapter implements BridgeAdapter {
     public Count count(BridgeRequest request) throws BridgeError {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
+        // parse Structure
+        String[] structureArray = request.getStructure().trim().split("\\s*>\\s*");
         // get Structure model
-        KineticCoreMapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(structureArray[0]);
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         
@@ -196,7 +216,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(request, parameterMap), parser);
+            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+                parameterMap), parser);
         
         Map<String,String> metadata = new LinkedHashMap<String, String>();
         int count = 0;
@@ -231,15 +252,18 @@ public class KineticCoreAdapter implements BridgeAdapter {
     public Record retrieve(BridgeRequest request) throws BridgeError {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
+        // parse Structure
+        String[] structureArray = request.getStructure().trim().split("\\s*>\\s*");
         // get Structure model
-        KineticCoreMapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(structureArray[0]);
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(request, parameterMap), parser);
+            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+                parameterMap), parser);
         
         JSONObject singleResult = new JSONObject();
         // parse response
@@ -282,8 +306,10 @@ public class KineticCoreAdapter implements BridgeAdapter {
     public RecordList search(BridgeRequest request) throws BridgeError {
         // update query with parameter values
         request.setQuery(substituteQueryParameters(request));
+        // parse Structure
+        String[] structureArray = request.getStructure().trim().split("\\s*>\\s*");
         // get Structure model
-        KineticCoreMapping mapping = getMapping(request.getStructure());
+        KineticCoreMapping mapping = getMapping(structureArray[0]);
         // get a map of parameters from the request
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
@@ -318,7 +344,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(request, parameterMap), parser);
+            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+                parameterMap), parser);
 
         List<Record> records = new ArrayList<Record>();
         Map<String, String> metadata = request.getMetadata() != null ?
@@ -591,15 +618,13 @@ public class KineticCoreAdapter implements BridgeAdapter {
     /**
      * Build URL to be used when making request to the source system.
      * 
-     * @param BridgeRequest request
+     * @param String path
      * @param Map<String, NameValuePair> parameters
      * @return String
      */
-    protected String getUrl (BridgeRequest request,
-        Map<String, NameValuePair> parameters) {
+    protected String getUrl (String path, Map<String, NameValuePair> parameters) {
         
-        return String.format("%s/app/api/v1/%s?%s", spaceUrl, 
-            parser.parsePath(request.getQuery()), 
+        return String.format("%s/app/api/v1%s?%s", spaceUrl, path, 
             URLEncodedUtils.format(parameters.values(), Charset.forName("UTF-8")));
     }
     
@@ -722,6 +747,86 @@ public class KineticCoreAdapter implements BridgeAdapter {
         }
         
         return supported;
+    }
+    
+    protected static String pathSpace(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return "/space";
+    }
+    
+    protected static String pathUsers(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return "/users";
+    }
+    
+    protected static String pathTeams(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return "/teams";
+    }
+    
+    protected static String pathKapps(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return "/kapps";
+    }
+    
+    protected static String pathDatastoreSubmissions (String [] structureArray,
+        Map<String, String> parameters) throws BridgeError{
+        
+        String path;
+        if (structureArray.length > 1) {
+            if(!parameters.containsKey("id")) {
+                logger.debug("The Datastore Submissions structure doesn't"
+                    + " support the id parameter provided with a form slug");
+            }
+            path = "/datastore/submissions/" + structureArray[1];
+        } else if (structureArray.length == 1 && parameters.containsKey("id")) {
+            path = "/datastore/submissions/" + parameters.get("id");
+        } else {
+           throw new BridgeError("The Datastore Submissions structure must have"
+                + " a > :Form_Slug or the id parameter in the qualification "
+                + "mapping");
+        }
+        return path;
+    }
+    
+    protected static String pathDatastoreForms(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return "/datastore/forms";
+    }
+    
+    protected static String pathSubmissions (String [] structureArray,
+        Map<String, String> parameters) throws BridgeError{
+        
+        String path;
+        if (structureArray.length >= 2) {
+            if(parameters.containsKey("id")) {
+                logger.debug("The Submissions structure doesn't support the id "
+                    + "parameter provided with a form slug");
+            }
+            path = structureArray.length == 2 ? 
+                String.format("/kapps/%s/submissions/", structureArray[1]) :
+                String.format("/kapps/%s/forms/%s/submissions/",
+                    structureArray[1], structureArray[2]) ;
+            
+        } else if (structureArray.length == 1 && parameters.containsKey("id")) {
+            path = "/submissions/" + parameters.get("id");
+        } else {
+           throw new BridgeError("The Submissions structure must have > :Kapp_Slug"
+                + " or > :Kapp_Slug > :Form_Slug or the id parameter in the "
+                + "qualification mapping");
+        }
+        return path;
+    }
+    
+    protected static String pathForms(String [] structureArray,
+        Map<String, String> _noOp) {
+        
+        return String.format("/kapps/%s/forms", structureArray[1]);
     }
     
     private String substituteQueryParameters(BridgeRequest request) throws BridgeError {

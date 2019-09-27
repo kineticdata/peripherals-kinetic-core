@@ -29,22 +29,24 @@ public class KineticCoreMapping {
     private final Set<String> implicitIncludes;
     private List<String> paginationFields;
     private PaginationPredicate paginationPredicate;
+    private PathPredicate pathPredicate;
 
     public KineticCoreMapping(String structure, String plural, String singular, 
         Collection<String> implicitIncludes, 
-        PaginationPredicate paginationPredicate) {
+        PaginationPredicate paginationPredicate, PathPredicate pathPredicate) {
 
         this.structure = structure;
         this.plural = plural;
         this.singular = singular;
         this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
         this.paginationPredicate = paginationPredicate;
+        this.pathPredicate = pathPredicate;
     }
 
     public KineticCoreMapping(String structure, String plural, String singular, 
         Collection<String> implicitIncludes, 
         Collection<String> paginationFields,
-        PaginationPredicate paginationPredicate) {
+        PaginationPredicate paginationPredicate, PathPredicate pathPredicate) {
 
         this.structure = structure;
         this.plural = plural;
@@ -52,6 +54,7 @@ public class KineticCoreMapping {
         this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
         this.paginationFields = new ArrayList<>(paginationFields);
         this.paginationPredicate = paginationPredicate;
+        this.pathPredicate = pathPredicate;
     }
 
     public String getStructure() {
@@ -76,5 +79,9 @@ public class KineticCoreMapping {
 
     public PaginationPredicate getPaginationPredicate() {
         return paginationPredicate;
+    }
+    
+    public PathPredicate getPathPredicate(){
+        return pathPredicate;
     }
 }
