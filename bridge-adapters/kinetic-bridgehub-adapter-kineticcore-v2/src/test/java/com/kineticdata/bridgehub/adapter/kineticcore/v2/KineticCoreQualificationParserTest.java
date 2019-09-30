@@ -19,16 +19,6 @@ public class KineticCoreQualificationParserTest {
     /*----------------------------------------------------------------------------------------------
      * TESTS
      *--------------------------------------------------------------------------------------------*/
-
-    @Test
-    public void test_parsePath() throws Exception {
-        String path = parser.parsePath(
-            "kapps/services/forms?q=name=*\"c\" AND status=\"Active\""
-        );
-        
-        assertEquals("kapps/services/forms",  path);
-    }
-    
     @Test
     public void test_parse_ParameterWithBackslash() throws Exception {
         // `\` should be escaped to `\\`

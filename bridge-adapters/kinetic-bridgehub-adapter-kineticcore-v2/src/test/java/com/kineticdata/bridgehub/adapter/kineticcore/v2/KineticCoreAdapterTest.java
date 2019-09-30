@@ -79,21 +79,21 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         assertNull(record.getRecord().get(randomField.toString()));
     }
     
-    @Test
-    public void test_invalidQuery() {
-        BridgeError error = null;
-        
-        BridgeRequest request = new BridgeRequest();
-        request.setStructure(getStructure());
-        request.setFields(getFields());
-        request.setQuery("");
-        
-        try {
-            getAdapter().search(request);
-        } catch (BridgeError e) { error = e; }
-        
-        assertNotNull(error);
-    }
+//    @Test
+//    public void test_invalidQuery() {
+//        BridgeError error = null;
+//        
+//        BridgeRequest request = new BridgeRequest();
+//        request.setStructure(getStructure());
+//        request.setFields(getFields());
+//        request.setQuery("");
+//        
+//        try {
+//            getAdapter().search(request);
+//        } catch (BridgeError e) { error = e; }
+//        
+//        assertNotNull(error);
+//    }
     
     /* The need for this test must be evaluated.  What should the behavior of the
      * adapter be if no feilds are provided?
@@ -118,7 +118,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?q=slug=\"cleaning\"");
+        request.setQuery("q=slug=\"cleaning\"");
         
         List<String> list = Arrays.asList("name", "slug", "attributes[Icon]");
         request.setFields(list);
@@ -131,7 +131,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?q=name=*\"c\" AND status=\"<%=parameter[\"Status\"]%>\"");
+        request.setQuery("q=name=*\"c\" AND status=\"<%=parameter[\"Status\"]%>\"");
         
         Map parameters = new HashMap();
         parameters.put("Status", "Active");
@@ -148,7 +148,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_count_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?q=name=*\"zzzz\"");
+        request.setQuery("q=name=*\"zzzz\"");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -162,7 +162,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?limit=100");
+        request.setQuery("limit=100");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -176,7 +176,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?limit=100&q=name=*\"c\" AND status=\"Active\"");
+        request.setQuery("limit=100&q=name=*\"c\" AND status=\"Active\"");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -190,7 +190,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
-        request.setQuery("?q=slug=\"cleaning\"&include=fields");
+        request.setQuery("q=slug=\"cleaning\"&include=fields");
         
         List<String> list = Arrays.asList("name", "slug", "fields");
         request.setFields(list);
@@ -217,7 +217,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_datastore_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Datastore Forms");
-        request.setQuery("?q=slug=\"alerts\"");
+        request.setQuery("q=slug=\"alerts\"");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -230,7 +230,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_datastore_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Datastore Forms");
-        request.setQuery("?q=name=*\"a\" AND status=\"Active\"");
+        request.setQuery("q=name=*\"a\" AND status=\"Active\"");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -256,7 +256,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_users() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Users");
-        request.setQuery("?q=username=\"chad.rehm@kineticdata.com\"");
+        request.setQuery("q=username=\"chad.rehm@kineticdata.com\"");
         
         List<String> list = Arrays.asList("displayName", "email", "profileAttributes[First Name]");
         request.setFields(list);
@@ -269,7 +269,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_users() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Users");
-        request.setQuery("?limit=10&q=username=*\"cad\" AND enabled=\"true\"");
+        request.setQuery("limit=10&q=username=*\"cad\" AND enabled=\"true\"");
         
         List<String> list = Arrays.asList("displayName", "email");
         request.setFields(list);
@@ -285,14 +285,14 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         List<String> list = Arrays.asList("displayName", "email");
         request.setFields(list);
         
-        request.setQuery("?limit=10&q=username=*\"c\" AND enabled=\"true\"");
+        request.setQuery("limit=10&q=username=*\"c\" AND enabled=\"true\"");
         RecordList records1 = getAdapter().search(request);
         
-        request.setQuery("?limit=10&q=username=*\"c\" AND enabled=\"true\"&pageToken=" 
+        request.setQuery("limit=10&q=username=*\"c\" AND enabled=\"true\"&pageToken=" 
             + records1.getMetadata().get("nextPageToken"));
         RecordList records2 = getAdapter().search(request);
         
-        request.setQuery("?limit=20&q=username=*\"c\" AND enabled=\"true\"");
+        request.setQuery("limit=20&q=username=*\"c\" AND enabled=\"true\"");
         RecordList records3 = getAdapter().search(request);
         
         Assert.assertTrue(records1.getRecords().size() > 0);
@@ -330,7 +330,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_teams() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Teams");
-        request.setQuery("?q=name=*\"b\"");
+        request.setQuery("q=name=*\"b\"");
         
         List<String> list = Arrays.asList("name", "description", "memberships", "attributes[Icon]");
         request.setFields(list);
@@ -356,7 +356,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_kapps() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Kapps");
-        request.setQuery("?q=slug=\"admin\"");
+        request.setQuery("q=slug=\"admin\"");
         
         List<String> list = Arrays.asList("name", "slug", "attributes[Bundle Package]");
         request.setFields(list);
@@ -369,7 +369,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_kapps() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Kapps");
-        request.setQuery("?q=name=*\"q\"");
+        request.setQuery("q=name=*\"q\"");
         
         List<String> list = Arrays.asList("name", "slug");
         request.setFields(list);
@@ -395,7 +395,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_submissions() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Submissions");
-        request.setQuery("?id=5276a8fd-6509-11e9-b1c2-d5380975a038");
+        request.setQuery("id=5276a8fd-6509-11e9-b1c2-d5380975a038");
         
         List<String> list = Arrays.asList("createdBy", "label", "values[Checkbox Field]");
         request.setFields(list);
@@ -434,7 +434,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_submissions_order() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Submissions > services");
-        request.setQuery("?timeline=createdAt&direction=ASC");
+        request.setQuery("timeline=createdAt&direction=ASC");
         
         Map <String, String> metadata = new HashMap<>();
         metadata.put("order", "<%=field[\"createdAt\"]%>:ASC");
@@ -471,7 +471,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_submissions_order_limit() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Submissions > services > aaa-test-form");
-        request.setQuery("?coreState=<%=parameter[\"Core State\"]%>&limit=10");
+        request.setQuery("coreState=<%=parameter[\"Core State\"]%>&limit=10");
         
         Map parameters = new HashMap();
         parameters.put("Core State", "Submitted");
