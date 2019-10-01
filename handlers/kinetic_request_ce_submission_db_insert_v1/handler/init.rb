@@ -177,11 +177,11 @@ class KineticRequestCeSubmissionDbInsertV1
     space_slug = get_param(@parameters, driver_parameters)["space_slug"].empty? ? @info_values["space_slug"] : get_param(@parameters, driver_parameters)["space_slug"]
     if @info_values['api_server'].to_s.empty? == false then
       if @info_values['api_server'].include?("${space}")
-        api_server = @info_values['api_server'].gsub("${space}", space_slug)
+        api_server = @info_values['api_server'].gsub("${space}", space_slug).chomp("/")
       elsif !space_slug.to_s.empty?
-        api_server = @info_values['api_server']+"/"+space_slug
+        api_server = @info_values['api_server'].chomp("/")+"/"+space_slug
       else
-        api_server = @info_values['api_server']
+        api_server = @info_values['api_server'].chomp("/")
       end
     end
 
@@ -421,9 +421,11 @@ class KineticRequestCeSubmissionDbInsertV1
             :kapp_slug => kapp_slug,
             :submission => submission
           })
-          generate_kapp_table(
-            get_kapp_table_name(kapp_slug)
-          )
+          if datastore != "yes" then
+            generate_kapp_table(
+              get_kapp_table_name(kapp_slug)
+            )
+          end
 
           insert_table_definition({
             :form_slug => form_slug,
@@ -484,22 +486,24 @@ class KineticRequestCeSubmissionDbInsertV1
             }.reduce Hash.new, :merge
 
           # if the record does not exist in the database, insert it.
-          if @info_values['first_bulk_load'] || @db[kapp_table_name.to_sym].select(:c_id).where(:c_id => submission["id"]).count == 0 then
-            @db[kapp_table_name.to_sym].call(
-              :insert,
-              # {"c_id" => value, "c_formSlug" => value} -> {:c_id => value, :c_formSlug => value}
-              db_submission_values,
-              submission_values_columns_map
-            )
-          # else, update it.
-          else
-            @db[kapp_table_name.to_sym].where(
-              Sequel.lit('"c_id" = ? and "c_updatedAt" < ?', submission['id'], ce_submission[:c_updatedAt]
-            )).call(
-              :update, 
-              db_submission_values,
-              submission_values_columns_map
-            ) unless @info_values['ignore_updates']
+          if datastore != "yes" then
+            if @info_values['first_bulk_load'] || @db[kapp_table_name.to_sym].select(:c_id).where(:c_id => submission["id"]).count == 0 then
+              @db[kapp_table_name.to_sym].call(
+                :insert,
+                # {"c_id" => value, "c_formSlug" => value} -> {:c_id => value, :c_formSlug => value}
+                db_submission_values,
+                submission_values_columns_map
+              )
+            # else, update it.
+            else
+              @db[kapp_table_name.to_sym].where(
+                Sequel.lit('"c_id" = ? and "c_updatedAt" < ?', submission['id'], ce_submission[:c_updatedAt]
+              )).call(
+                :update, 
+                db_submission_values,
+                submission_values_columns_map
+              ) unless @info_values['ignore_updates']
+            end
           end
 
         #end general kapp submission database transaction
