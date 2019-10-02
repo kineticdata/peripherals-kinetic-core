@@ -30,12 +30,17 @@ public class KineticCoreQualificationParser extends QualificationParser {
             // anything after (including more = signs if there are any) is 
             // considered to be part of the value
             String[] str_array = query.split("=",2);
-            if (str_array.length >= 2) {
+            if (str_array.length == 2) {
                 parameters.merge(str_array[0].trim(), str_array[1].trim(), 
                     (prev, curr) -> {
                         return String.join(",", prev, curr);
                     }
                 );
+            } else if (str_array.length == 1) {
+                parameters.put(str_array[0].trim(), null);
+            } else {
+                logger.debug("%s has a parameter that was unexpected.",
+                    queryString);
             }
         }
         return parameters;
