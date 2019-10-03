@@ -1,11 +1,13 @@
 package com.kineticdata.bridgehub.adapter.kineticcore.v2;
 
 import com.kineticdata.bridgehub.adapter.kineticcore.v2.KineticCoreQualificationParser;
+import java.util.HashMap;
 import org.junit.Before;
 import org.junit.Test;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class KineticCoreQualificationParserTest {
 
@@ -20,7 +22,7 @@ public class KineticCoreQualificationParserTest {
      * TESTS
      *--------------------------------------------------------------------------------------------*/
     @Test
-    public void test_parse_ParameterWithBackslash() throws Exception {
+    public void test_parse_parametera_backslash() throws Exception {
         // `\` should be escaped to `\\`
 
         // Build the parameter map
@@ -33,7 +35,7 @@ public class KineticCoreQualificationParserTest {
     }
     
     @Test
-    public void test_parse_ParameterWithBackslashAndQuotation() throws Exception {
+    public void test_parse_parameter_backslash_quotation() throws Exception {
         // `\"` should be escaped to `\\\"`
 
         // Build the parameter map
@@ -46,7 +48,7 @@ public class KineticCoreQualificationParserTest {
     }
 
     @Test
-    public void test_parse_ParameterWithQuotation() throws Exception {
+    public void test_parse_parameter_quotation() throws Exception {
         // `"` should be escaped to `\"`
 
         // Build the parameter map
@@ -58,4 +60,34 @@ public class KineticCoreQualificationParserTest {
         assertEquals("q=\"" + "\\\"abc" + "\"", queryString);
     }
 
+    @Test
+    public void test_get_parameter() throws Exception {
+        String queryString = "q=name=\"foo\"";
+        Map <String, String> parameterMap = parser.getParameters(queryString);
+        
+        Map <String, String> constantMap = new HashMap<>();
+        constantMap.put("q", "name=\"foo\"");
+        
+        assertEquals(parameterMap, constantMap);
+    }
+    
+    @Test
+    public void test_get_parameter_multiple() throws Exception {
+        String queryString = "coreState=Draft&start=2019-02-05";
+        Map <String, String> parameterMap = parser.getParameters(queryString);
+        
+        Map <String, String> constantMap = new HashMap<>();
+        constantMap.put("coreState", "Draft");
+        constantMap.put("start", "2019-02-05");
+        
+        assertEquals(parameterMap, constantMap);
+    }
+    
+        @Test
+    public void test_get_parameter_none() throws Exception {
+        String queryString = "";
+        Map <String, String> parameterMap = parser.getParameters(queryString);
+        
+        assertTrue(parameterMap.isEmpty());
+    }
 }

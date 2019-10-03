@@ -310,21 +310,25 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         request.setFields(list);
         
         Count count = getAdapter().count(request);
-        String x = "1";
+        Assert.assertTrue(count.getValue() > 0);
     }
-    
-//    @Test
-//    public void test_retrieve_teams() throws Exception {
-//        BridgeRequest request = new BridgeRequest();
-//        request.setStructure("Teams");
-//        request.setQuery("teams/c1ec1d62eafad32ca16fe4df49b9ca2f");
-//        
-//        List<String> list = Arrays.asList("name", "description");
-//        request.setFields(list);
-//        
-//        Record record = getAdapter().retrieve(request);
-//        Assert.assertTrue(record.getRecord().size() > 0);
-//    }
+   
+    @Test
+    public void test_retrieve_teams() throws Exception {
+        BridgeRequest request = new BridgeRequest();
+        request.setStructure("Teams");
+        request.setQuery("q=name=\"<%=parameter[\"Team Name\"]%>\"");
+        
+        Map parameters = new HashMap();
+        parameters.put("Team Name", "HR");
+        request.setParameters(parameters);
+        
+        List<String> list = Arrays.asList("name", "description");
+        request.setFields(list);
+        
+        Record record = getAdapter().retrieve(request);
+        Assert.assertTrue(record.getRecord().size() > 0);
+    }
     
     @Test
     public void test_search_teams() throws Exception {
@@ -391,7 +395,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         Assert.assertTrue(count.getValue() > 0);
     }
     
-        @Test
+    @Test
     public void test_retrieve_submissions() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Submissions");
