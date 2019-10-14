@@ -1,106 +1,16 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.kineticdata.bridgehub.adapter.kineticcore.v2;
 
 import com.kineticdata.bridgehub.adapter.kineticcore.v2.KineticCoreAdapter;
 import com.kineticdata.bridgehub.adapter.Record;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.JSONArray;
-import org.junit.Assert;
 import org.junit.Test;
 
-/**
- *
- * @author chad.rehm
- */
 public class KineticCoreHelperTest {
-    
-    @Test
-    public void test_paginationSupported_3() throws Exception {
-        List<String> paginationFields = new ArrayList<>();
-        LinkedHashMap<String, String> sortOrderItems = new LinkedHashMap<>();
-      
-        paginationFields.add("values[Status]");
-        sortOrderItems.put("values[Status]","ASC");
-        Map<String, String> parameters = new HashMap<String, String>();
-        
-        // Test index and order fields match
-        boolean supported = false;
-        supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertTrue(supported);
-        
-        // Test additional indexs and order fields with same direction
-        paginationFields.add("values[Related Id]");
-        sortOrderItems.put("values[Related Id]","ASC");
-        supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertTrue(supported);
-        
-        // Test that mixed direction fails
-        sortOrderItems.replace("values[Related Id]", "DESC");
-        supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertFalse(supported);
-        
-        // Test that mismatched list sizes fails
-        sortOrderItems.remove("values[Related Id]");
-        supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertFalse(supported);
-        
-        // Test that index out of order fails
-        sortOrderItems.clear();
-        sortOrderItems.put("values[Related Id]","ASC");
-        sortOrderItems.put("values[Status]","ASC");
-        supported = KineticCoreAdapter.paginationSupportedForIndexedModel(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertFalse(supported);
-    }
-    
-    @Test
-    public void test_paginationSupported_1() throws Exception {
-        List<String> paginationFields = new ArrayList<>();
-        LinkedHashMap<String, String> sortOrderItems = new LinkedHashMap<>();
-        KineticCoreAdapter kcAdapter = new KineticCoreAdapter();
-      
-        String sortByValue = "createdAt";
-        String sortByDirection = "DESC";
-        paginationFields.add("createdAt");
-        sortOrderItems.put(sortByValue,sortByDirection);
-        Map parameters = new HashMap();
-        
-        // Test paginatable field is included in query string
-        boolean supported = false;
-        supported = kcAdapter.paginationSupportedForRestrictedModelTimeline(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertTrue(supported);
-        Assert.assertTrue(parameters.containsKey("timeline"));
-        
-        // Test that parameters have had the new key/values added
-        if (parameters.containsKey("timeline") && parameters
-            .containsKey("direction")) {
-            
-            Assert.assertTrue(parameters.get("timeline").equals(sortByValue));
-            Assert.assertTrue(parameters.get("direction").equals(sortByDirection));
-        } else {
-            Assert.assertTrue(false);
-        }
-        
-        // Test paginatable fields does not match sortOrderItems
-        sortOrderItems.remove("createdAt");
-        supported = kcAdapter.paginationSupportedForRestrictedModelTimeline(
-            paginationFields, parameters, sortOrderItems);
-        Assert.assertFalse(supported);
-    }
     /*--------------------------------------------------------------------------
     Temp Test for flattenNestedFields
     --------------------------------------------------------------------------*/

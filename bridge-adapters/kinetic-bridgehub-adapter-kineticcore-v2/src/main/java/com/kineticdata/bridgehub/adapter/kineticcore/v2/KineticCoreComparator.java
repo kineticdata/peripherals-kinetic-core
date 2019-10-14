@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.kineticdata.bridgehub.adapter.kineticcore.v2;
 
 import com.kineticdata.bridgehub.adapter.Record;
@@ -10,17 +5,17 @@ import java.util.Comparator;
 import java.util.Map;
 
 /**
- *
- * @author chad.rehm
+ * This class compares Records for adapter side sorting.
  */
 public class KineticCoreComparator implements Comparator<Record> {
 
-  private Map<String, String> sortOrderItems;
+  private final Map<String, String> sortOrderItems;
 
   public KineticCoreComparator(Map<String, String> sortOrderItems) {
     this.sortOrderItems = sortOrderItems;
   }
 
+  @Override
   public int compare(Record r1, Record r2) {
     int result = 0;
 

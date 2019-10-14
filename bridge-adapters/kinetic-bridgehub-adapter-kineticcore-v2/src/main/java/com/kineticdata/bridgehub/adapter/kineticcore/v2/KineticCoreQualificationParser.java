@@ -2,16 +2,12 @@ package com.kineticdata.bridgehub.adapter.kineticcore.v2;
 
 import com.kineticdata.bridgehub.adapter.BridgeError;
 import com.kineticdata.bridgehub.adapter.QualificationParser;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * This class is has helpers used to parser the qualification mapping value. 
  */
 public class KineticCoreQualificationParser extends QualificationParser {
      /** Defines the logger */

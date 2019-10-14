@@ -1,14 +1,12 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.kineticdata.bridgehub.adapter.kineticcore.v2;
 
+import com.kineticdata.bridgehub.adapter.BridgeError;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,26 +25,27 @@ public class KineticCoreMapping {
     private final String plural;
     private final String singular;
     private final Set<String> implicitIncludes;
-    private List<String> paginationFields;
-    private PaginationPredicate paginationPredicate;
-    private PathPredicate pathPredicate;
+    private final List<String> paginationFields;
+    private final PaginationPredicate paginationPredicate;
+    private final PathBuilder pathBuilder;
 
     public KineticCoreMapping(String structure, String plural, String singular, 
         Collection<String> implicitIncludes, 
-        PaginationPredicate paginationPredicate, PathPredicate pathPredicate) {
+        PaginationPredicate paginationPredicate, PathBuilder pathBuilder) {
 
+        this.paginationFields = null;
         this.structure = structure;
         this.plural = plural;
         this.singular = singular;
         this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
         this.paginationPredicate = paginationPredicate;
-        this.pathPredicate = pathPredicate;
+        this.pathBuilder = pathBuilder;
     }
 
     public KineticCoreMapping(String structure, String plural, String singular, 
         Collection<String> implicitIncludes, 
         Collection<String> paginationFields,
-        PaginationPredicate paginationPredicate, PathPredicate pathPredicate) {
+        PaginationPredicate paginationPredicate, PathBuilder pathBuilder) {
 
         this.structure = structure;
         this.plural = plural;
@@ -54,8 +53,25 @@ public class KineticCoreMapping {
         this.implicitIncludes = new LinkedHashSet<>(implicitIncludes);
         this.paginationFields = new ArrayList<>(paginationFields);
         this.paginationPredicate = paginationPredicate;
-        this.pathPredicate = pathPredicate;
+        this.pathBuilder = pathBuilder;
     }
+    
+    /**
+    * Interfaces for mappings.
+    */
+    @FunctionalInterface
+    public static interface PaginationPredicate {
+        boolean apply(List<String> paginationFields, Map<String, String> parameters,
+            LinkedHashMap<String, String> sortOrderItems);
+    }
+
+
+    @FunctionalInterface
+    public static interface PathBuilder {
+        String apply(String[] structureArray, Map<String, String> parameters) 
+           throws BridgeError;
+    }
+
 
     public String getStructure() {
         return structure;
@@ -81,7 +97,7 @@ public class KineticCoreMapping {
         return paginationPredicate;
     }
     
-    public PathPredicate getPathPredicate(){
-        return pathPredicate;
+    public PathBuilder getPathBuilder(){
+        return pathBuilder;
     }
 }

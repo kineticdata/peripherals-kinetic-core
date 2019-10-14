@@ -15,11 +15,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,23 +40,8 @@ import org.json.simple.JSONValue;
 import org.slf4j.LoggerFactory;
 
 /**
- * Interfaces for mappings.
- */
-@FunctionalInterface
-interface PaginationPredicate {
-    boolean apply(List<String> paginationFields, Map<String, String> parameters,
-        LinkedHashMap<String, String> sortOrderItems);
-}
-
-
-@FunctionalInterface
-interface PathPredicate {
-    String apply(String[] structureArray, Map<String, String> parameters) 
-        throws BridgeError;
-}
-
-/**
- *
+ * The main class for the Core v2 adapter.  The Bridge required methods search,
+ * count and retrieve are defined in this file.
  */
 public class KineticCoreAdapter implements BridgeAdapter {
     /*----------------------------------------------------------------------------------------------
@@ -80,8 +65,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
             KineticCoreAdapter::pathSubmissions));
         put("Forms", new KineticCoreMapping("Forms", "forms", "form", 
             Arrays.asList("details", "attributes"),
-            Arrays.asList("category", "createdAt", "name", "slug", "updatedAt",
-                "status", "type"),
+            Arrays.asList("createdAt", "name", "slug", "updatedAt", "status",
+                "type", "attributes\\[.+\\]"),
             KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
             KineticCoreAdapter::pathForms));
         put("Users", new KineticCoreMapping("Users", "users", "user",
@@ -96,21 +81,21 @@ public class KineticCoreAdapter implements BridgeAdapter {
             KineticCoreAdapter::pathTeams));
         put("Kapps", new KineticCoreMapping("Kapps", "kapps", "kapp", 
             Arrays.asList("details", "attributes"),
-            Arrays.asList("createdAt", "name", "slug", "updateAt"),
+            Arrays.asList("createdAt", "name", "slug", "updateAt","status", "attributes\\[.+\\]"),
             KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
             KineticCoreAdapter::pathKapps));
         put("Datastore Forms", new KineticCoreMapping("Datastore Forms", "forms", 
-             "form", Arrays.asList("values","details"),
-            Arrays.asList("createdAt", "name", "slug", "updatedAt", "status"),
+             "form", Arrays.asList("details", "attributes"),
+            Arrays.asList("createdAt", "name", "slug", "updatedAt", "status", "attributes\\[.+\\]"),
             KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
             KineticCoreAdapter::pathDatastoreForms));
         put("Datastore Submissions", new KineticCoreMapping("Datastore Submissions", 
-            "submissions", "submission", Arrays.asList("details", "attributes"),
+            "submissions", "submission", Arrays.asList("details", "values"),
             KineticCoreAdapter::paginationSupportedForIndexedModel,
             KineticCoreAdapter::pathDatastoreSubmissions));
         put("Space", new KineticCoreMapping("Space", "", "space", 
             Arrays.asList("details", "attributes"),
-            Arrays.asList("createdAt", "name", "slug", "updateAt"),
+            Arrays.asList("createdAt", "name", "slug", "updateAt", "attributes\\[.+\\]"),
             KineticCoreAdapter::paginationSupportedForUnrestrictedModel,
             KineticCoreAdapter::pathSpace));
     }};
@@ -123,7 +108,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
     public static final String NAME = "Kinetic Core v2 Bridge";
 
     /** Defines the logger */
-    protected static final org.slf4j.Logger logger = LoggerFactory.getLogger(KineticCoreAdapter.class);
+    protected static final org.slf4j.Logger logger = 
+        LoggerFactory.getLogger(KineticCoreAdapter.class);
 
     /** Adapter version constant. */
     public static String VERSION;
@@ -131,7 +117,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
     static {
         try {
             java.util.Properties properties = new java.util.Properties();
-            properties.load(KineticCoreAdapter.class.getResourceAsStream("/"+KineticCoreAdapter.class.getName()+".version"));
+            properties.load(KineticCoreAdapter.class.getResourceAsStream("/" 
+                + KineticCoreAdapter.class.getName()+".version"));
             VERSION = properties.getProperty("version");
         } catch (IOException e) {
             logger.warn("Unable to load "+KineticCoreAdapter.class.getName() 
@@ -155,7 +142,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
 
     private final ConfigurablePropertyMap properties = new ConfigurablePropertyMap(
         new ConfigurableProperty(Properties.USERNAME).setIsRequired(true),
-        new ConfigurableProperty(Properties.PASSWORD).setIsRequired(true).setIsSensitive(true),
+        new ConfigurableProperty(Properties.PASSWORD).setIsRequired(true)
+            .setIsSensitive(true),
         new ConfigurableProperty(Properties.SPACE_URL).setIsRequired(true)
     );
     
@@ -192,7 +180,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
 
         // Testing the configuration values to make sure that they
         // correctly authenticate with Core
-        testAuth();
+        coreApiHelper.testAuth(spaceUrl + "/app/api/v1/space");
     }
 
     /*---------------------------------------------------------------------------------------------
@@ -216,7 +204,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+            getUrl(mapping.getPathBuilder().apply(structureArray, parameters),
                 parameterMap), parser);
         
         Map<String,String> metadata = new LinkedHashMap<String, String>();
@@ -262,7 +250,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+            getUrl(mapping.getPathBuilder().apply(structureArray, parameters),
                 parameterMap), parser);
         
         JSONObject singleResult = new JSONObject();
@@ -324,7 +312,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
                 BridgeUtils.parseOrder(request.getMetadata("order")));
             
             List<String> paginationFields;
-            if (request.getStructure() == "Datastore Submissions") { 
+            if (structureArray[0].equals("Datastore Submissions")) { 
                 paginationFields = 
                     Arrays.asList(parameters.get("index").split("\\s*,\\s*"));
             } else { 
@@ -344,7 +332,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
-            getUrl(mapping.getPathPredicate().apply(structureArray, parameters),
+            getUrl(mapping.getPathBuilder().apply(structureArray, parameters),
                 parameterMap), parser);
 
         List<Record> records = new ArrayList<Record>();
@@ -516,7 +504,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
      * element in the array.
      * 
      * @param List<String> fields
-     * JSONArray @param array
+     * @param JSONArray @param array
      * @return List<Record>
      * @throws BridgeError 
      */
@@ -632,12 +620,13 @@ public class KineticCoreAdapter implements BridgeAdapter {
     // Check that the sore order item is in the paginated fields list
     // Users, Teams
     // paginationFields = [displayName,email]
+    // parameters = {"limit","1000"}
     // sortOrderItmes = {"displayName","ACS"}
     protected static boolean paginationSupportedForRestrictedModelOrderBy(
         List<String> paginationFields, Map<String, String> parameters,
         LinkedHashMap<String, String> sortOrderItems) {
         
-        return restrictedModelHelper(paginationFields, parameters, "orderBy",
+        return paginationSupportedForRestrictedModel(paginationFields, parameters, "orderBy",
             sortOrderItems);
     }
     
@@ -645,108 +634,130 @@ public class KineticCoreAdapter implements BridgeAdapter {
     // Check that the sore order item is in the paginated fields list
     // Kapp Submissions
     // paginationFields = [createdAt,updatedAt]
+    // parameters = {"limit","1000"}
     // sortOrderItmes = {"displayName","ACS"}
     protected static boolean paginationSupportedForRestrictedModelTimeline(
         List<String> paginationFields, Map<String, String> parameters,
         LinkedHashMap<String, String> sortOrderItems) {
         
-        return restrictedModelHelper(paginationFields, parameters, "timeline",
+        return paginationSupportedForRestrictedModel(paginationFields, parameters, "timeline",
             sortOrderItems);
     }
     
-    protected static boolean restrictedModelHelper(List<String> paginationFields, 
-        Map<String, String> parameters, String parameterName, 
-         LinkedHashMap<String, String> sortOrderItems) {
-        
-        boolean supported = false;
-                
-        // The Structure only allows server side pagination on a single feild.
-        // If sort order items has more than a single item pagination is not  
-        // supported serverside.
-        if (sortOrderItems.size() == 1) {
-            String sortBy = sortOrderItems.entrySet().iterator().next().getKey();
-            String direction = sortOrderItems.entrySet().iterator().next().getValue();
+    protected static boolean paginationSupportedForRestrictedModel(
+        List<String> paginationFields, 
+        Map<String, String> parameters,
+        String parameterName, 
+        LinkedHashMap<String, String> sortOrderItems
+    ) {
+        boolean supported;
+
+        // Ensure that no more than one item.
+        if (sortOrderItems.size() > 1) {
+            logger.debug("The endpoint does not support sorting by multiple fields.");
+            supported = false;
+        }
+        // If there is exactly one item
+        else {
+            // Obtain a reference to the first sort order item
+            Map.Entry<String,String> firstItem = sortOrderItems.entrySet().stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Unexpected state."));
+            String sortBy = firstItem.getKey();
+            String direction = firstItem.getValue();
+            // If the pagination fields contains the sort by field
             if (paginationFields.contains(sortBy)) {
                 parameters.put(parameterName, sortBy);
                 parameters.put("direction", direction);
                 supported = true;
-            } else {
+            }
+            // If the pagination fields does not contain the sort by field
+            else {
                 logger.debug("The endpoint does not support %s as an %s "
                     + "field.", sortBy, parameterName);
+                supported = false;
             }
         }
+        
         return supported;
     }
     
     // Check that all sort directions match for sort order items.
     // Check that all sort order items are also pagination fields.
-    // Kapps, Kapp Forms, DataStore Forms
+    // Kapps, Kapp Forms, DataStore Forms, Space
     // paginationFields = [createdAt,updatedAt]
-    // queryString = ?timeline=createdAt&direction=ACS
+    // parameters = {"limit","1000"}
     // sortOrderItmes = {"createdAt","ACS"}
     protected static boolean paginationSupportedForUnrestrictedModel(
         List<String> paginationFields, Map<String, String> parameters,
         LinkedHashMap<String, String> sortOrderItems) {
         
-        boolean supported = false;
-
-        // check that Ordering has consistant direction.
-        supported = sortOrderItems.values().stream().map(String::toLowerCase)
-            .collect(Collectors.toSet()).size() <= 1;
-        if (supported) {
-            supported = false;
-            
-            // Order of the items is maintained based on Java docs 
-            // https://docs.oracle.com/javase/7/docs/api/java/util/Map.html
-            // https://stackoverflow.com/questions/18929854/method-to-extract-all-keys-from-linkedhashmap-into-a-list
-            Set<String> itemsKeys = sortOrderItems.keySet();
-            Set<String> fieldsSet = new HashSet<>(paginationFields);
-            String direction = sortOrderItems.entrySet().iterator().next().getValue();
-            
-            if (fieldsSet.equals(itemsKeys)) {
-                parameters.put("orderBy", String.join(" ,", itemsKeys));
-                parameters.put("direction", direction);
-                supported = true;
-            }
-        } else {
+        // Determine whether pagaintion is supported
+        boolean unsupported = 
+            // Ensuring all directions are the same
+            sortOrderItems.values().stream()
+                .map(String::toLowerCase)
+                .distinct()
+                .count() > 1
+            // Ensuring all sort items are valid paginatable fields
+            || !sortOrderItems.keySet().stream()
+                .allMatch(key -> paginationFields.stream()
+                    .anyMatch(field -> key.matches(field)));
+        
+        if (unsupported) {
             logger.debug("Server side sorting only supports a single key "
                     + "direction for kapps, kapp forms and datastore forms.");
+        } else if (sortOrderItems.size() > 0) {
+            parameters.put("orderBy", 
+                String.join(",", sortOrderItems.keySet()));
+            parameters.put("direction", 
+                sortOrderItems.values().stream().findFirst().get());
         }
         
-        return supported;
+        return !unsupported;
     }
     
     // TODO: confirm that direction in order metadata matches qualification mapping.
     // Check that sort direction is consistent for all sort order items
     // Check that the indexs and the sortOrderItems match in value and order
     protected static boolean paginationSupportedForIndexedModel( 
-        List<String> indexes, Map<String, String> _noOp1, 
+        List<String> indexSegments, Map<String, String> _noOp1, 
         LinkedHashMap<String, String> sortOrderItems) {
         
-        boolean supported = false;
+        // Determine whether pagaintion is supported
+        boolean unsupported = 
+            // Ensuring all directions are the same
+            sortOrderItems.values().stream()
+                .map(String::toLowerCase)
+                .distinct()
+                .count() > 1
+            // Ensuring all sort items are valid paginatable fields
+            || !indexSupportsSortOrder(indexSegments, sortOrderItems);
         
-        // check that Ordering has consistant direction.
-        supported = sortOrderItems.values().stream().map(String::toLowerCase)
-            .collect(Collectors.toSet()).size() <= 1;
-        
-        // If all sort fields are either ascending or descending continue chacking
-        // if pagination is supported with all index in same order and quanity.
-        if (sortOrderItems.size() == indexes.size()
-                && supported) {
-            
-            int idx = 0;
-            for (String item: sortOrderItems.keySet()) {
-                if (!indexes.get(idx).equalsIgnoreCase(item)) {
-                    supported = false;
-                    break;
-                }
-                idx++;
-            }
-        } else {
-            supported = false;
+        if (unsupported) {
+            logger.debug("Server side sorting only supports a single key "
+                    + "direction for datastore submissions.");
         }
         
-        return supported;
+        return !unsupported;
+    }
+    
+    protected static boolean indexSupportsSortOrder(
+        List<String> indexSegments,
+        LinkedHashMap<String, String> sortOrderItems
+    ) {
+        boolean result = true;
+        List<String> sortOrderKeys = new ArrayList<>(sortOrderItems.keySet());
+        for (int i=0; i<sortOrderKeys.size(); i++) {
+            if (
+                i >= indexSegments.size() 
+                || !Objects.equals(sortOrderKeys.get(i), indexSegments.get(i))
+            ) {
+                result = false;
+                break;
+            }
+        }
+        return result;
     }
     
     protected static String pathSpace(String [] structureArray,
@@ -778,11 +789,11 @@ public class KineticCoreAdapter implements BridgeAdapter {
         
         String path;
         if (structureArray.length > 1) {
-            if(!parameters.containsKey("id")) {
+            if(parameters.containsKey("id")) {
                 logger.debug("The Datastore Submissions structure doesn't"
                     + " support the id parameter provided with a form slug");
             }
-            path = "/datastore/submissions/" + structureArray[1];
+            path = "/datastore/forms/" + structureArray[1] +"/submissions";
         } else if (structureArray.length == 1 && parameters.containsKey("id")) {
             path = "/datastore/submissions/" + parameters.get("id");
         } else {
@@ -834,37 +845,5 @@ public class KineticCoreAdapter implements BridgeAdapter {
         // values. ie. change the query username=<%=parameter["Username"]%> to
         // username=test.user where parameter["Username"]=test.user
         return parser.parse(request.getQuery(),request.getParameters());
-    }
-
-    private void testAuth() throws BridgeError {
-        logger.debug("Testing the authentication credentials");
-        HttpGet get = new HttpGet(spaceUrl + "/app/api/v1/space");
-        get = addAuthenticationHeader(get, this.username, this.password);
-
-        HttpClient client = HttpClients.createDefault();
-        HttpResponse response;
-        try {
-            response = client.execute(get);
-            HttpEntity entity = response.getEntity();
-            EntityUtils.consume(entity);
-            if (response.getStatusLine().getStatusCode() == 401) {
-                throw new BridgeError("Unauthorized: The inputted Username/Password combination is not valid.");
-            } else if (response.getStatusLine().getStatusCode() != 200) {
-                throw new BridgeError("Connecting to the Kinetic Core instance located at '"+this.spaceUrl+"' failed.");
-            }
-        }
-        catch (IOException e) {
-            logger.error("An unexpected IO exception was encountered calling the"
-                + " core API." + e);
-            throw new BridgeError("Unable to make a connection to properly to Kinetic Core.");
-        }
-    }
-
-    private HttpGet addAuthenticationHeader(HttpGet get, String username, String password) {
-        String creds = username + ":" + password;
-        byte[] basicAuthBytes = Base64.encodeBase64(creds.getBytes());
-        get.setHeader("Authorization", "Basic " + new String(basicAuthBytes));
-
-        return get;
     }
 }
