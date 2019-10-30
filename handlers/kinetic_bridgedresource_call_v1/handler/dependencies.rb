@@ -37,3 +37,5 @@ elsif RestClient.version.to_s != "1.6.7"
 end
 
 require "cgi"
+require 'open-uri'
+require 'uri'

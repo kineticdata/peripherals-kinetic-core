@@ -33,7 +33,7 @@ class KineticBridgedresourceCallV1
     @space = @parameters["space"]
     @kapp = @parameters["kapp"]
     @form = @parameters["form"]
-    @resource = CGI.escape(@parameters["resource"])
+    @resource = URI.escape(@parameters["resource"])
     @path = ""
     if !@space.nil? && @space != ""
       @path = "/#{@space}"
@@ -43,7 +43,7 @@ class KineticBridgedresourceCallV1
 
     @postData = "attributes="
     #process given Parameters
-    if !@parameters["params"].nil?
+    if !@parameters["params"].nil? && @parameters["params"] != ""
       @values = JSON.parse(@parameters["params"])
       @values.each do |key,value|
         puts "Processing Parameter: #{key} : #{value},  #{CGI.escape(key)} : #{CGI.escape(value)} to get sent to #{@path}" if @debug_logging_enabled

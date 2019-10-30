@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <taskDefinition id="kinetic_bridgedresource_call" name="Kinetic Bridged Resource Call v1" schema_version="1.0" version="1">
   <author>support@kineticdata.com</author>
-  <description>A generic rest handler.</description>
+  <description>A handler that calls a bridged resource from a form.</description>
   <helpurl></helpurl>
   <visible>false</visible>
   <deferrable>false</deferrable>
@@ -11,7 +11,7 @@
     <parameter id="kapp" label="Kapp Slug" required="true" tooltip="kapp slug for kapp containing form with bridged resource"></parameter>
     <parameter id="form" label="Form Slug" required="true" tooltip="form with bridged resource"></parameter>
     <parameter id="resource" label="Bridged Resource Name" required="true" tooltip="Name set up in the form for the Bridged Resource"></parameter>
-    <parameter id="params" label="Parameters" required="true" tooltip="JSON of parameters for bridged resource not hard coded, format example: {'values[Requested Date]':'2019-03-25'"></parameter>
+    <parameter id="params" label="Parameters" required="false" tooltip="JSON of parameters for bridged resource not hard coded, format example: {'values[Requested Date]':'2019-03-25'"></parameter>
   </parameters>
 
   <handler name="kinetic_bridgedresource_call" version="1">
