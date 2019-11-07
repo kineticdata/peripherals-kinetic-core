@@ -128,6 +128,19 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     }
     
     @Test
+    public void test_search_form_limit() throws Exception {
+        BridgeRequest request = new BridgeRequest();
+        request.setStructure("Forms > services");
+        request.setQuery("limit=2");
+        
+        List<String> list = Arrays.asList("name", "slug", "attributes[Icon]");
+        request.setFields(list);
+        
+        RecordList record = getAdapter().search(request);
+        Assert.assertTrue(record.getRecords().size() == 2);
+    }
+    
+    @Test
     public void test_search_form() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Forms > services");
@@ -269,7 +282,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_users() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Users");
-        request.setQuery("limit=10&q=username=*\"cad\" AND enabled=\"true\"");
+        request.setQuery("limit=10&q=username=*\"c\" AND enabled=\"true\"");
         
         List<String> list = Arrays.asList("displayName", "email");
         request.setFields(list);
@@ -285,14 +298,15 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         List<String> list = Arrays.asList("displayName", "email");
         request.setFields(list);
         
-        request.setQuery("limit=10&q=username=*\"c\" AND enabled=\"true\"");
+        request.setQuery("limit=2");
         RecordList records1 = getAdapter().search(request);
         
-        request.setQuery("limit=10&q=username=*\"c\" AND enabled=\"true\"&pageToken=" 
+        // Test that the next page of result can be retrieved.
+        request.setQuery("limit=2&pageToken=" 
             + records1.getMetadata().get("nextPageToken"));
         RecordList records2 = getAdapter().search(request);
         
-        request.setQuery("limit=20&q=username=*\"c\" AND enabled=\"true\"");
+        request.setQuery("limit=4");
         RecordList records3 = getAdapter().search(request);
         
         Assert.assertTrue(records1.getRecords().size() > 0);
@@ -399,7 +413,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_retrieve_submissions() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Submissions");
-        request.setQuery("id=5276a8fd-6509-11e9-b1c2-d5380975a038");
+        request.setQuery("id=7c30f7a6-f0ed-11e9-9061-ff3ea81280ec");
         
         List<String> list = Arrays.asList("createdBy", "label", "values[Checkbox Field]");
         request.setFields(list);

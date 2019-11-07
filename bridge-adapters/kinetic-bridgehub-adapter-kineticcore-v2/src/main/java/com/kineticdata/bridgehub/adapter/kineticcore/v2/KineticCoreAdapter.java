@@ -324,7 +324,7 @@ public class KineticCoreAdapter implements BridgeAdapter {
         
         // default the limit of the query if not provided
         String limit = null;
-        if (!paginationSupported || !parameters.containsKey("limit")) {    
+        if (!paginationSupported && !parameters.containsKey("limit")) {    
             limit = parameters.get("limit");
             parameters.put("limit", "1000");
         }
@@ -835,9 +835,14 @@ public class KineticCoreAdapter implements BridgeAdapter {
     }
     
     protected static String pathForms(String [] structureArray,
-        Map<String, String> _noOp) {
+        Map<String, String> _noOp) throws BridgeError {
         
-        return String.format("/kapps/%s/forms", structureArray[1]);
+        if (structureArray.length > 1) {
+            return String.format("/kapps/%s/forms", structureArray[1]);
+        } else {
+            throw new BridgeError("The Forms structure must have > :Kapp_Slug"
+                    + " in the qualification mapping");
+        }
     }
     
     private String substituteQueryParameters(BridgeRequest request) throws BridgeError {
