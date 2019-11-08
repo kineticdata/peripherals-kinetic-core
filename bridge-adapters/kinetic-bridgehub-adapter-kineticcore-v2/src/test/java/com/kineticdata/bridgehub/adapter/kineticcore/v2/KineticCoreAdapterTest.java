@@ -80,7 +80,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     }
     
     @Test
-    public void test_invalidQuery() {
+    public void test_blankQuery() {
         BridgeError error = null;
         
         BridgeRequest request = new BridgeRequest();
@@ -92,7 +92,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
             getAdapter().search(request);
         } catch (BridgeError e) { error = e; }
         
-        assertNotNull(error);
+        assertNull(error);
     }
     
     /* The need for this test must be evaluated.  What should the behavior of the
@@ -111,7 +111,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
             getAdapter().retrieve(request);
         } catch (BridgeError e) { error = e; }
         
-        assertNotNull(error);
+        assertNull(error);
     }
 
     @Test
@@ -348,7 +348,7 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
     public void test_search_teams() throws Exception {
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Teams");
-        request.setQuery("q=name=*\"b\"");
+        request.setQuery("q=name=*\"a\"");
         
         List<String> list = Arrays.asList("name", "description", "memberships", "attributes[Icon]");
         request.setFields(list);
@@ -524,6 +524,39 @@ public class KineticCoreAdapterTest extends BridgeAdapterTestBase {
         
         RecordList records = getAdapter().search(request);
         Assert.assertTrue(records.getRecords().size() > 0);
+        
+        RecordList records2 = getAdapter().search(request);
+        Assert.assertTrue(records2.getRecords().size() > 0);
+    }
+    
+    @Test
+    public void test_search_submissions_order_limit_2() throws Exception {
+        BridgeRequest request = new BridgeRequest();
+        request.setStructure("Submissions > services > bbb-test-form");
+        request.setQuery("coreState=<%=parameter[\"Core State\"]%>&limit=10");
+        
+        Map parameters = new HashMap();
+        parameters.put("Core State", "Submitted");
+        request.setParameters(parameters);
+        
+        Map <String, String> metadata = new HashMap<>();
+        metadata.put("order", "<%=field[\"values[Dropdown Field]\"]%>:DESC"
+            + ",<%=field[\"values[Radio Button]\"]%>:ASC");
+        
+        request.setMetadata(metadata);
+        
+        List<String> fields = Arrays.asList("createdAt", "label",
+            "values[Radio Button]","values[Dropdown Field]");
+        request.setFields(fields);
+        
+        RecordList records = getAdapter().search(request);
+        Assert.assertTrue(records.getRecords().size() == 10);
+        
+        RecordList records2 = getAdapter().search(request);
+        Assert.assertTrue(records2.getRecords().size() == 10);
+        
+        RecordList records3 = getAdapter().search(request);
+        Assert.assertTrue(records3.getRecords().size() > 0);
     }
     
     @Test

@@ -302,10 +302,17 @@ public class KineticCoreAdapter implements BridgeAdapter {
         Map<String, String> parameters = parser.getParameters(request.getQuery());
         parameters = addImplicitIncludes(parameters, mapping.getImplicitIncludes());
         
-        LinkedHashMap<String,String> sortOrderItems = null; 
-        
-        // determine if paginations is supported server side.
+        // memorize the requested limit (it may be overwritten when adapter side
+        // sorting is leveraged and we want to apply this value to returned 
+        // results)
+        String limit = parameters.get("limit");
+        if (limit == null) {
+            limit = parameters.get("pageSize");
+        }
+        // intialize pagination and sorting variables
         boolean paginationSupported = false;
+        LinkedHashMap<String,String> sortOrderItems = null; 
+        // adapter side sorting requires an order be set by request
         if (request.getMetadata("order") != null) {
             
             sortOrderItems = getSortOrderItems(
@@ -320,15 +327,15 @@ public class KineticCoreAdapter implements BridgeAdapter {
             }
             paginationSupported = mapping.getPaginationPredicate().apply(
                 paginationFields, parameters, sortOrderItems);
+            
+            // If pagination not supported by core, we retrieve upto 1000 results
+            // (even if this is greater than specified limit) so that the adapter
+            // can do sorting and pagination.
+            if (!paginationSupported) {
+                parameters.put("limit", "1000");
+            }
         }
-        
-        // default the limit of the query if not provided
-        String limit = null;
-        if (!paginationSupported && !parameters.containsKey("limit")) {    
-            limit = parameters.get("limit");
-            parameters.put("limit", "1000");
-        }
-        
+    
         Map<String, NameValuePair> parameterMap = buildNameValuePairMap(parameters);
         
         String response = coreApiHelper.executeRequest(request, 
@@ -355,39 +362,40 @@ public class KineticCoreAdapter implements BridgeAdapter {
         }
         
         
-        // If server side sorting isn't supported and order is required.
+        // If server side sorting isn't supported and order is required then
+        // sort adapter side.
         if (!paginationSupported && request.getMetadata("order") != null) {
             // If all the records have been retrived sort adapter side.
-            if ( metadata.get("nextPageToken") != null) {
+            if ( metadata.get("nextPageToken") == null) {
                 
                 int index = 0;
                 int offset = records.size();
                 if (limit != null) {
                     // support for adapter side pagianation
                     Integer currentPage = 0;
-                    if( metadata.get("currentPage") != null) {
+                    if( metadata.get("pageNumber") != null) {
                         try {
                             currentPage =
-                                Integer.parseInt(metadata.get("currentPage"));
+                                Integer.parseInt(metadata.get("pageNumber"));
                         } catch (NumberFormatException e) {
                             logger.error("An unexpected NumberFormatException "
-                                + "occurred parsing the currentPage metadata: " 
+                                + "occurred parsing the pageNumber metadata: " 
                                 + e); 
-                            throw new BridgeError("currentPage metadata must be"
-                                + "an Integer");
+                            throw new BridgeError("pageNumber metadata must be"
+                                + " an Integer");
                         }
                     }
                     
-                    metadata.put("page", limit);
-                    // increment page count if this isn't the first request.
-                    metadata.put("currentPage", currentPage > 0 ?
-                        "1" : Integer.toString(currentPage + 1));
+                    metadata.put("pageSize", limit);
+                    // increment page count.
+                    metadata.put("pageNumber",
+                        Integer.toString(currentPage + 1));
                     
                     try {
                         offset = Integer.parseInt(limit);
                     } catch  (NumberFormatException e) {
                         logger.error("An unexpected NumberFormatException "
-                            + "occurred parsing the currentPage metadata: " + e); 
+                            + "occurred parsing the pageSize metadata: " + e); 
                         throw new BridgeError("limit metadata must be an"
                             + " Integer");
                     }
@@ -398,7 +406,8 @@ public class KineticCoreAdapter implements BridgeAdapter {
                 KineticCoreComparator comparator =
                     new KineticCoreComparator(sortOrderItems);
                 Collections.sort(records, comparator);
-                records = records.subList(index, (offset - 1));
+                records = records.subList(index, records.size() < offset ? 
+                    records.size() : offset);
 
             } else {
                 metadata.put("warning", "Results won't be ordered because there "
