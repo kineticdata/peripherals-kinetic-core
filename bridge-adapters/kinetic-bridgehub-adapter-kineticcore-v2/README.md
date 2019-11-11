@@ -1,10 +1,12 @@
 # Kinetic Core Bridgehub Adapter
-A Kinetic Bridgehub adapter for the Kinetic Request: Core Edition platform
+A Kinetic Bridgehub adapter for the Kinetic Request: Core Edition platform.
+This adapter works with Core 2.4+
 
 * [Kinetic Core Bridgehub Adapter Information](#kinetic-core-bridgehub-adapter-information)
   * [Configuration Values](#configuration-values)
   * [Example Configuration](#example-configuration)
-  * [Changelog](#changelog)
+  * [Supported Structures](#supported-structures)
+  * [Fields](#fields)
 * [General Bridgehub Information](#general-bridgehub-information)
   * [What is a Bridgehub adapter?](#what-is-a-bridgehub-adapter)
   * [Bridgehub adapter basics](#bridgehub-adapter-basics)
@@ -28,9 +30,27 @@ A Kinetic Bridgehub adapter for the Kinetic Request: Core Edition platform
 | Password | secret-password |
 | Kinetic Core Space Url | https://localhost:8080/kinetic/space-slug |
 
-## Changelog
-### 1.0.0
-* Initial Version
+## Supported Structures
+| Name | Description |
+| :---------------------- | :------------------------- |
+| Space | Get space |
+| Datastore Forms | Get datastore forms |
+| Datastore Submissions | Get a datastore submission.  id=submission_slug required in qualification mapping |
+| Datastroe Submissions > FORM_SLUG | Get datastore submissions for a form |
+| Kapps | Get kapps |
+| Forms > KAPP_SLUG | Get forms for a kapp |
+| Submissions | Get a submission. id=submission_slug required in qualification mapping |
+| Submissions > KAPP_SLUG | Get submissions for a kapp |
+| Submissions > KAPP_SLUG > FORM_SLUG | Get submissions for a kapp and form |
+| Teams | Get teams |
+| Users | Get Users |
+
+Fields
+Fields that will be returned with the record.  If no fields are provided then all fields will be
+returned.
+
+Qualification (Query)
+Supports all queries that Core api supports for the given context.  An id parameter is required for datastore submission and kapp submission lookups.
 
 # General Bridgehub Information
 ---
