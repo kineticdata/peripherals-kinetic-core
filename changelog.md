@@ -1,3 +1,7 @@
+Kinetic Core [bridge-adapter] (2019-11-25)
+  * \[kinetic-bridge-adapter-kinetic-platform]
+    * removed adapter from project.
+
 Kinetic Core [bridge-adapter] (2019-11-22)
   * \[kinetic-bridge-adapter-kinetic-platform]
     * renamed adapter and set new version.
