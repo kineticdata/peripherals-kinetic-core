@@ -26,7 +26,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
     
     @Override
     public String getConfigFilePath() {
-        return "src//resources/bridge-config.yml";
+        return "src/test/resources/bridge-config.yml";
     }
     
     @Test
@@ -38,7 +38,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         configValues.put("Password", "");
         configValues.put("Space","");
         configValues.put("Slug", "");
-        configValues.put("URL Origin","");
+        configValues.put("Agent URL","");
         
         BridgeAdapter adapter = new KineticAgentBridgeAdapter();
         adapter.setProperties(configValues);
@@ -79,7 +79,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         configValues.put("Password", "");
         configValues.put("Space","");
         configValues.put("Slug", "");
-        configValues.put("URL Origin","");
+        configValues.put("Agent Url","");
         
         BridgeAdapter adapter = new KineticAgentBridgeAdapter();
         adapter.setProperties(configValues);
@@ -100,7 +100,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         BridgeRequest request = new BridgeRequest();
         request.setStructure("Users");
         request.setFields(fields);
-        request.setQuery("q=username=\"<%=parameter[\"User Name\"]%>\"");
+        request.setQuery("username=<%=parameter[\"User Name\"]%>");
         
         Map parameters = new HashMap();
         parameters.put("User Name", "chad.rehm@kineticdata.com");
@@ -126,7 +126,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         configValues.put("Password", "");
         configValues.put("Space","");
         configValues.put("Slug", "");
-        configValues.put("URL Origin","");
+        configValues.put("Agent Url","");
         
         BridgeAdapter adapter = new KineticAgentBridgeAdapter();
         adapter.setProperties(configValues);
@@ -167,7 +167,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         Map<String,String> configValues = new HashMap<String,String>();
         configValues.put("Username","");
         configValues.put("Password", "");
-        configValues.put("URL Origin","");
+        configValues.put("Agent URL","");
         
         BridgeAdapter adapter = new KineticAgentBridgeAdapter();
         adapter.setProperties(configValues);
@@ -181,16 +181,16 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         
         // Create the Bridge Request
         List<String> fields = new ArrayList<String>();
-        fields.add("First Name");
-        fields.add("Last Name");
+        fields.add("Bar");
+        fields.add("Foo");
         
         BridgeRequest request = new BridgeRequest();
-        request.setStructure("Entry");
+        request.setStructure("");
         request.setFields(fields);
-        request.setQuery("entry/CTM:People");
+        request.setQuery("");
         
         Map <String, String> metadata = new HashMap<>();
-        metadata.put("order", "<%=field[\"Last Name\"]%>:DESC");       
+        metadata.put("order", "<%=field[\"Foo\"]%>:DESC");       
         request.setMetadata(metadata);
         
         RecordList records = null;
@@ -211,7 +211,7 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         Map<String,String> configValues = new HashMap<String,String>();
         configValues.put("Username","");
         configValues.put("Password", "");
-        configValues.put("URL Origin","");
+        configValues.put("Agent URL","");
         
         BridgeAdapter adapter = new KineticAgentBridgeAdapter();
         adapter.setProperties(configValues);
@@ -225,17 +225,17 @@ public class KineticAgentTest extends BridgeAdapterTestBase{
         
         // Create the Bridge Request
         List<String> fields = new ArrayList<String>();
-        fields.add("First Name");
-        fields.add("Last Name");
+        fields.add("Bar");
+        fields.add("Foo");
         
         BridgeRequest request = new BridgeRequest();
-        request.setStructure("Entry");
+        request.setStructure("");
         request.setFields(fields);
-        request.setQuery("entry/CTM:People");
+        request.setQuery("");
         
         Map <String, String> metadata = new HashMap<>();
-        metadata.put("order", "<%=field[\"Last Name\"]%>:DESC"
-            + ",<%=field[\"First Name\"]%>:DESC");       
+        metadata.put("order", "<%=field[\"Foo\"]%>:DESC"
+            + ",<%=field[\"Bar\"]%>:DESC");       
         request.setMetadata(metadata);
         
         RecordList records = null;

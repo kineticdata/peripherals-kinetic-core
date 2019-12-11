@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import org.apache.http.HttpEntity;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Consts;
 import org.apache.http.HttpHeaders;
@@ -204,8 +206,29 @@ public class KineticAgentBridgeAdapter implements BridgeAdapter {
             throw new BridgeError("An unexpected error has occured: "+e.getMessage(), e);
         }
         
+        // Convert JSON to requirements for RecordList class.
+        List fieldsList = new ArrayList<>();
+        if (fields != null) {
+            for (int i=0; i<fields.size(); i++){ 
+                fieldsList.add(fields.get(i));
+            } 
+        } 
+        List<Record> recordList = new ArrayList<>();
+        records.forEach(jsonRecord -> {
+            Map recordMap = new HashMap<>();
+            JSONArray recordArray = (JSONArray)jsonRecord;
+            for (int i = 0; i < recordArray.size(); i++) {
+                recordMap.put(fields.get(i), recordArray.get(i));
+            }
+            recordList.add(new Record(recordMap));
+        });
+        Map<String, String> metadataMap = new HashMap<>();
+        Set<String> keys = metadata.keySet();
+        for(String key : keys) {
+            metadataMap.put(key, String.valueOf(metadata.get(key)));
+        }
 
-        return new RecordList(fields, records, metadata);
+        return new RecordList(fieldsList, recordList,  metadataMap);
     }
 
     /*----------------------------------------------------------------------------------------------
