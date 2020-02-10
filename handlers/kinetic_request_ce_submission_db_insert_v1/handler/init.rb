@@ -946,7 +946,7 @@ class KineticRequestCeSubmissionDbInsertV1
           else
             send("String", kapp_unlimited_column_name[field], :text => true, :unicode => true)
           end
-          send("String",kapp_limited_column_name[field], :text => true, :unicode => true, :size => db_column_size_limits[:formField])
+          send("String",kapp_limited_column_name[field], :unicode => true, :size => db_column_size_limits[:formField])
         end
       end
     end
@@ -999,7 +999,7 @@ class KineticRequestCeSubmissionDbInsertV1
           else
             send("String", unlimited_column_names_by_field[field].to_sym, :text => true, :unicode => true)
           end
-          send("String",limited_column_names_by_field[field].to_sym, :text => true, :unicode => true, :size => db_column_size_limits[:formField])
+          send("String",limited_column_names_by_field[field].to_sym, :unicode => true, :size => db_column_size_limits[:formField])
         end
       end
     end
